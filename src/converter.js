@@ -6,7 +6,8 @@
 var converter = exports;
 
 var Enum = require("./enum"),
-    util = require("./util");
+    util = require("./util"),
+    wrappers = require("./wrappers");
 
 /**
  * Generates a partial value fromObject conveter.
@@ -32,6 +33,9 @@ function genValuePartial_fromObject(gen, field, fieldIndex, prop) {
                     ("break");
             } gen
             ("}");
+        } else if (wrappers[field.resolvedType.fullName]) {
+            gen
+            ("m%s=types[%i].fromObject(d%s)", prop, fieldIndex, prop);
         } else gen
             ("if(typeof d%s!==\"object\")", prop)
                 ("throw TypeError(%j)", field.fullName + ": object expected")
@@ -129,7 +133,11 @@ converter.fromObject = function fromObject(mtype) {
             genValuePartial_fromObject(gen, field, /* not sorted */ i, prop + "[i]")
         ("}")
     ("}");
-
+        // Wrapper fields
+        } else if (field.resolvedType && wrappers[field.resolvedType.fullName]) { gen
+    ("if(typeof d%s !== \"undefined\"){", prop);
+        genValuePartial_fromObject(gen, field, /* not sorted */ i, prop)
+    ("}");
         // Non-repeated fields
         } else {
             if (!(field.resolvedType instanceof Enum)) gen // no need to test for null/undefined if an enum (uses switch)
